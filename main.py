@@ -4,6 +4,7 @@ import datetime
 import os
 from dotenv import load_dotenv
 
+
 # ---- Load environment variables ----
 load_dotenv()
 
@@ -117,4 +118,3 @@ if st.button("Analyze"):
             st.success("Saved to Notion Knowledge vault!")
         else:
             st.error("Failed to save. Check API key and database ID.")
-
