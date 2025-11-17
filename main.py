@@ -1,29 +1,29 @@
-import streamlit as st 
-import requests 
+import streamlit as st
+import requests
 import datetime
+import os
 
-# ----Subject detection (simple rule based)----
-def detect_subject(query:str) -> str:
+# ---- Subject detection ----
+def detect_subject(query: str) -> str:
     query_lower = query.lower()
-    if any(word in query_lower for word in ["integral", "derivaative", "equation", "solve","∫", "∑", ]):
+    if any(word in query_lower for word in ["integral", "derivative", "equation", "solve", "∫", "∑"]):
         return "Math"
-    elif any(word in query_lower for word in ["experiment", "hypothesis", "reaction", "photosynthesis", "biology", "chemistry",]):
+    elif any(word in query_lower for word in ["experiment", "hypothesis", "reaction", "photosynthesis", "biology", "chemistry"]):
         return "Science"
-    elif any(word in query_lower for word in ["timeline", "revolution", "world war", "causes", "history",]):
+    elif any(word in query_lower for word in ["timeline", "revolution", "world war", "causes", "history"]):
         return "History"
-    elif any(word in query_lower for word in ["theme", "character", "metaphor", "poem", "novel", "literature", "analysis",]):
+    elif any(word in query_lower for word in ["theme", "character", "metaphor", "poem", "novel", "literature", "analysis"]):
         return "Literature"
     else:
         return "General"
-    
 
 # ---- Notion API Integration ----
-NOTION_API_KEY = "your_notion_api_key"
-DATABASE_ID = "your_database_id"
+NOTION_API_KEY = os.getenv("NOTION_API_KEY")  # safer than hardcoding
+DATABASE_ID = "2aed872b-594c-8085-b6f7-0037b9546e1c"
 
-def sace_to_notion(subject, title, summary, deep_dive, sources):
+def save_to_notion(subject, title, summary, deep_dive, sources):
     url = "https://api.notion.com/v1/pages"
-    header = { 
+    headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
@@ -35,15 +35,16 @@ def sace_to_notion(subject, title, summary, deep_dive, sources):
             "Title": {"title": [{"text": {"content": title}}]},
             "Subject": {"select": {"name": subject}},
             "Summary": {"rich_text": [{"text": {"content": summary}}]},
-            "Deep Dive": {"rich_text": [{"text": {"content": deep_dive}}]}, 
+            "Deep Dive": {"rich_text": [{"text": {"content": deep_dive}}]},
             "Sources": {"url": sources},
             "Created At": {"date": {"start": datetime.datetime.now().isoformat()}}
         }
     }
-    response = requests.post(url, headers = header, json=data)
+
+    response = requests.post(url, headers=headers, json=data)
     return response.status_code == 200
 
-#--- Streamlit UI ---
+# ---- Streamlit UI ----
 st.title("Cross-Subject AI Assistant")
 st.write("Powered by Comet + Notion. Helps students across Math, Science, History, and Literature.")
 
@@ -59,13 +60,13 @@ if st.button("Analyze"):
     visualization = "Graph/Timeline/Diagram placeholder..."
     sources = "https://example.com"
 
-    tabs = st.table(["Summary", "Deep Dive", "Visualization", "Sources",])
+    tabs = st.tabs(["Summary", "Deep Dive", "Visualization", "Sources"])
     with tabs[0]:
         st.write(summary)
     with tabs[1]:
         st.write(deep_dive)
     with tabs[2]:
-        st.write(visualization)  # Replace with actual visualization
+        st.write(visualization)
     with tabs[3]:
         st.write(sources)
 
@@ -73,5 +74,5 @@ if st.button("Analyze"):
         success = save_to_notion(subject, query[:50], summary, deep_dive, sources)
         if success:
             st.success("Saved to Notion Knowledge vault!")
-        else: 
+        else:
             st.error("Failed to save. Check API key and database ID.")
