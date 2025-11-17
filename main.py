@@ -2,6 +2,10 @@ import streamlit as st
 import requests
 import datetime
 import os
+from dotenv import load_dotenv
+
+# ---- Load environment variables ----
+load_dotenv()
 
 # ---- Subject detection ----
 def detect_subject(query: str) -> str:
@@ -44,6 +48,31 @@ def save_to_notion(subject, title, summary, deep_dive, sources):
     response = requests.post(url, headers=headers, json=data)
     return response.status_code == 200
 
+# ---- Comet (Perplexity) Integration ----
+def query_perplexity(prompt, model="sonar", system_message="Provide concise and accurate answers."):
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 500,
+        "temperature": 0.7,
+        "top_p": 0.9
+    }
+    response = requests.post("https://api.perplexity.ai/chat/completions", headers=headers, json=data)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Error: {response.status_code}")
+        st.error(response.text)
+        return None
+
 # ---- Streamlit UI ----
 st.title("Cross-Subject AI Assistant")
 st.write("Powered by Comet + Notion. Helps students across Math, Science, History, and Literature.")
@@ -54,12 +83,24 @@ if st.button("Analyze"):
     subject = detect_subject(query)
     st.write(f"Detected Subject: **{subject}**")
 
-    # Placeholder outputs (replace with Comet integration later)
-    summary = "Quick summary of topic..."
-    deep_dive = "Detailed explanation with structured steps..."
-    visualization = "Graph/Timeline/Diagram placeholder..."
-    sources = "https://example.com"
+    # Call Comet API
+    result = query_perplexity(query)
 
+    if result:
+        answer_text = result["choices"][0]["message"]["content"]
+
+        # Simple parsing (you can refine later)
+        summary = answer_text[:200]  # first 200 chars
+        deep_dive = answer_text
+        visualization = "Visualization placeholder (attach charts later)"
+        sources = "Sources placeholder (Comet may include citations in response)"
+    else:
+        summary = "Error retrieving summary."
+        deep_dive = "Error retrieving deep dive."
+        visualization = "Error retrieving visualization."
+        sources = "Error retrieving sources."
+
+    # Display results in tabs
     tabs = st.tabs(["Summary", "Deep Dive", "Visualization", "Sources"])
     with tabs[0]:
         st.write(summary)
@@ -76,3 +117,4 @@ if st.button("Analyze"):
             st.success("Saved to Notion Knowledge vault!")
         else:
             st.error("Failed to save. Check API key and database ID.")
+
